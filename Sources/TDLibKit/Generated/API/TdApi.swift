@@ -17720,14 +17720,21 @@ public final class TdApi {
     private func execute<Q, R>(query: Q) async throws -> R where Q: Codable, R: Codable {
         let dto = DTO(query, encoder: self.encoder)
         return try await withCheckedThrowingContinuation { continuation in
-            try! client.send(query: dto) { result in
-                if let error = try? self.decoder.decode(DTO<Error>.self, from: result) {
-                    continuation.resume(with: .failure(error.payload))
-                } else {
-                    let response = self.decoder.tryDecode(DTO<R>.self, from: result)
-                    continuation.resume(with: response.map { $0.payload })
-                }
+          do {
+            try client.send(query: dto) { result in
+              if let error = try? self.decoder.decode(DTO<Error>.self, from: result) {
+                continuation.resume(with: .failure(error.payload))
+              } else {
+                let response = self.decoder.tryDecode(DTO<R>.self, from: result)
+                continuation.resume(with: response.map { $0.payload })
+              }
             }
+          } catch let err as Error {
+            continuation.resume(with: .failure(err))
+          } catch let any {
+            let err = Error(code: 500, message: any.localizedDescription)
+            continuation.resume(with: .failure(err))
+          }
         }
     }
 }

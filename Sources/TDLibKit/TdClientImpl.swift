@@ -20,7 +20,7 @@ open class TdClientImpl: TdClient {
     private var updateHandler: ((Data) -> Void)?
     private let logger: Logger?
     private var isClientDestroyed = true
-    private var stopFlag = false
+    private var stopFlag = true
     
     
     /// Instantiate a Tdlib Client
@@ -41,12 +41,13 @@ open class TdClientImpl: TdClient {
         if !stopFlag {
             self.stopFlag = true
             try! send(query: DTO(Close()), completion: { _ in
-                self.tdlibMainQueue.async { [weak self] in
-                    guard let self else { return }
-                    td_json_client_destroy(self.client)
-                    self.isClientDestroyed = true
-                }
+
             })
+          self.tdlibMainQueue.async { [weak self] in
+              guard let self else { return }
+              td_json_client_destroy(self.client)
+              self.isClientDestroyed = true
+          }
         }
     }
     
@@ -69,12 +70,15 @@ open class TdClientImpl: TdClient {
                 self.logger?.log(String(cString: res), type: .receive)
                 self.queryResultAsync(data)
             }
+            return
         }
     }
     
     /// Sends request to the TDLib client.
     public func send(query: TdQuery, completion: (CompletionHandler)? = nil) throws {
-        guard !self.isClientDestroyed else { throw Error(code: 404, message: "Client destroyed") }
+        guard !self.isClientDestroyed else {
+            throw Error(code: 404, message: "Client destroyed")
+        }
         
         tdlibQueryQueue.async { [weak self] in
             guard let `self` = self else { return }
