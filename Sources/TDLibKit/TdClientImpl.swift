@@ -90,7 +90,7 @@ open class TdClientImpl: TdClient {
             let data = try! query.make(with: extra)
             if let str = String(data: data, encoding: .utf8) {
                 self.logger?.log(str, type: .send)
-                guard !stopFlag else {
+                guard !self.stopFlag else {
                     return
                 }
                 td_json_client_send(self.client, str)
