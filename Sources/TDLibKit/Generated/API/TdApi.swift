@@ -9,19 +9,16 @@
 
 import Foundation
 
-
 public final class TdApi {
-
     public let client: TdClient
     public let encoder = JSONEncoder()
     public let decoder = JSONDecoder()
 
     public init(client: TdClient) {
         self.client = client
-        self.encoder.keyEncodingStrategy = .convertToSnakeCase
-        self.decoder.keyDecodingStrategy = .convertFromSnakeCase
+        encoder.keyEncodingStrategy = .convertToSnakeCase
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
     }
-
 
     /// Returns the current authorization state; this is an offline request. For informational purposes only. Use updateAuthorizationState instead to maintain the current authorization state. Can be called before initialization
     /// - Returns: The current authorization state
@@ -6557,7 +6554,7 @@ public final class TdApi {
     }
 
     /// Creates a new supergroup or channel and sends a corresponding messageSupergroupChatCreate. Returns the newly created chat
-    /// - Parameter description: 
+    /// - Parameter description:
     /// - Parameter forImport: Pass true to create a supergroup for importing messages using importMessage
     /// - Parameter isChannel: Pass true to create a channel chat; ignored if a forum is created
     /// - Parameter isForum: Pass true to create a forum supergroup chat
@@ -6588,7 +6585,7 @@ public final class TdApi {
     }
 
     /// Creates a new supergroup or channel and sends a corresponding messageSupergroupChatCreate. Returns the newly created chat
-    /// - Parameter description: 
+    /// - Parameter description:
     /// - Parameter forImport: Pass true to create a supergroup for importing messages using importMessage
     /// - Parameter isChannel: Pass true to create a channel chat; ignored if a forum is created
     /// - Parameter isForum: Pass true to create a forum supergroup chat
@@ -7625,7 +7622,7 @@ public final class TdApi {
 
     /// Changes information about a chat. Available for basic groups, supergroups, and channels. Requires can_change_info administrator right
     /// - Parameter chatId: Identifier of the chat
-    /// - Parameter description: 
+    /// - Parameter description:
     public func setChatDescription(
         chatId: Int64?,
         description: String?,
@@ -7640,7 +7637,7 @@ public final class TdApi {
 
     /// Changes information about a chat. Available for basic groups, supergroups, and channels. Requires can_change_info administrator right
     /// - Parameter chatId: Identifier of the chat
-    /// - Parameter description: 
+    /// - Parameter description:
     @available(iOS 13.0, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     public func setChatDescription(
         chatId: Int64?,
@@ -9818,7 +9815,7 @@ public final class TdApi {
     /// - Parameter userId: Identifier of the user to be called
     public func createCall(
         isVideo: Bool?,
-        `protocol`: CallProtocol?,
+        protocol: CallProtocol?,
         userId: Int64?,
         completion: @escaping (Result<CallId, Swift.Error>) -> Void
     ) throws {
@@ -9837,7 +9834,7 @@ public final class TdApi {
     @available(iOS 13.0, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     public func createCall(
         isVideo: Bool?,
-        `protocol`: CallProtocol?,
+        protocol: CallProtocol?,
         userId: Int64?
     ) async throws -> CallId {
         let query = CreateCall(
@@ -9853,7 +9850,7 @@ public final class TdApi {
     /// - Parameter `protocol`: The call protocols supported by the application
     public func acceptCall(
         callId: Int?,
-        `protocol`: CallProtocol?,
+        protocol: CallProtocol?,
         completion: @escaping (Result<Ok, Swift.Error>) -> Void
     ) throws {
         let query = AcceptCall(
@@ -9869,7 +9866,7 @@ public final class TdApi {
     @available(iOS 13.0, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     public func acceptCall(
         callId: Int?,
-        `protocol`: CallProtocol?
+        protocol: CallProtocol?
     ) async throws -> Ok {
         let query = AcceptCall(
             callId: callId,
@@ -13058,7 +13055,7 @@ public final class TdApi {
 
     /// Sets the text shown in the chat with a bot if the chat is empty. Can be called only if userTypeBot.can_be_edited == true
     /// - Parameter botUserId: Identifier of the target bot
-    /// - Parameter description: 
+    /// - Parameter description:
     /// - Parameter languageCode: A two-letter ISO 639-1 language code. If empty, the description will be shown to all users for whose languages there is no dedicated description
     public func setBotInfoDescription(
         botUserId: Int64?,
@@ -13076,7 +13073,7 @@ public final class TdApi {
 
     /// Sets the text shown in the chat with a bot if the chat is empty. Can be called only if userTypeBot.can_be_edited == true
     /// - Parameter botUserId: Identifier of the target bot
-    /// - Parameter description: 
+    /// - Parameter description:
     /// - Parameter languageCode: A two-letter ISO 639-1 language code. If empty, the description will be shown to all users for whose languages there is no dedicated description
     @available(iOS 13.0, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     public func setBotInfoDescription(
@@ -17697,44 +17694,48 @@ public final class TdApi {
         return try await execute(query: query)
     }
 
-
     private func execute<Q, R>(
         query: Q,
         completion: @escaping (Result<R, Swift.Error>) -> Void)
         where Q: Codable, R: Codable {
-
-        let dto = DTO(query, encoder: self.encoder)
-        try! client.send(query: dto) { [weak self] result in
-            guard let strongSelf = self else { return }
-            if let error = try? strongSelf.decoder.decode(DTO<Error>.self, from: result) {
-                completion(.failure(error.payload))
-            } else {
-                let response = strongSelf.decoder.tryDecode(DTO<R>.self, from: result)
-                completion(response.map { $0.payload })
-            }
-        }
+        let dto = DTO(query, encoder: encoder)
+          do {
+              try client.send(query: dto) { [weak self] result in
+                  guard let strongSelf = self else { return }
+                  if let error = try? strongSelf.decoder.decode(DTO<Error>.self, from: result) {
+                      completion(.failure(error.payload))
+                  } else {
+                      let response = strongSelf.decoder.tryDecode(DTO<R>.self, from: result)
+                      completion(response.map { $0.payload })
+                  }
+              }
+          } catch let err as Error {
+              completion( .failure(err))
+          } catch let any {
+              let err = Error(code: 500, message: any.localizedDescription)
+              completion( .failure(err))
+          }
     }
-
 
     @available(iOS 13.0, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     private func execute<Q, R>(query: Q) async throws -> R where Q: Codable, R: Codable {
-        let dto = DTO(query, encoder: self.encoder)
+        let dto = DTO(query, encoder: encoder)
         return try await withCheckedThrowingContinuation { continuation in
-          do {
-            try client.send(query: dto) { result in
-              if let error = try? self.decoder.decode(DTO<Error>.self, from: result) {
-                continuation.resume(with: .failure(error.payload))
-              } else {
-                let response = self.decoder.tryDecode(DTO<R>.self, from: result)
-                continuation.resume(with: response.map { $0.payload })
-              }
+            do {
+                try client.send(query: dto) { result in
+                    if let error = try? self.decoder.decode(DTO<Error>.self, from: result) {
+                        continuation.resume(with: .failure(error.payload))
+                    } else {
+                        let response = self.decoder.tryDecode(DTO<R>.self, from: result)
+                        continuation.resume(with: response.map { $0.payload })
+                    }
+                }
+            } catch let err as Error {
+                continuation.resume(with: .failure(err))
+            } catch let any {
+                let err = Error(code: 500, message: any.localizedDescription)
+                continuation.resume(with: .failure(err))
             }
-          } catch let err as Error {
-            continuation.resume(with: .failure(err))
-          } catch let any {
-            let err = Error(code: 500, message: any.localizedDescription)
-            continuation.resume(with: .failure(err))
-          }
         }
     }
 }

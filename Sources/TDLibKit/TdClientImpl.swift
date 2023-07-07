@@ -39,15 +39,14 @@ open class TdClientImpl: TdClient {
     public func close() {
         guard !isClientDestroyed else { return }
         if !stopFlag {
-            self.stopFlag = true
             try! send(query: DTO(Close()), completion: { _ in
-
+              self.stopFlag = true
+              self.tdlibMainQueue.async { [weak self] in
+                  guard let self else { return }
+                  td_json_client_destroy(self.client)
+                  self.isClientDestroyed = true
+              }
             })
-          self.tdlibMainQueue.async { [weak self] in
-              guard let self else { return }
-              td_json_client_destroy(self.client)
-              self.isClientDestroyed = true
-          }
         }
     }
     
